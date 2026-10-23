@@ -7,14 +7,11 @@ function render() {
     document.activeElement &&
     document.activeElement.hasAttribute &&
     document.activeElement.hasAttribute("data-q");
+  const extras =
+    Modal() +
+    (UI.toast ? `<div class="toast" role="status">${esc(UI.toast)}</div>` : "");
   if (!S.user) {
-    app.innerHTML =
-      Login() +
-      Demo() +
-      Modal() +
-      (UI.toast
-        ? `<div class="toast" role="status">${esc(UI.toast)}</div>`
-        : "");
+    app.innerHTML = Login() + extras;
     bindLogin();
     return;
   }
@@ -28,11 +25,8 @@ function render() {
     log: Log,
   };
   app.innerHTML =
-    Header() +
-    (views[UI.tab] || Patients)() +
-    Demo() +
-    Modal() +
-    (UI.toast ? `<div class="toast" role="status">${esc(UI.toast)}</div>` : "");
+    `<div class="shell">${Sidebar()}<main class="main">${(views[UI.tab] || Patients)()}<div class="main-demo wrap">${Demo()}</div></main></div>` +
+    extras;
   if (focusQ) {
     const q = $("[data-q]");
     if (q) {
@@ -47,9 +41,9 @@ function render() {
   }
 }
 function Demo() {
-  return `<div class="demo"><div class="wrap"><b>Prototype controls</b>
-  <span>Simulate the next calendar day to see streaks, missed readings and discharge timing in action.</span><span class="spacer"></span>
-  <button class="btn sm" data-act="nextday">Advance to next day</button><button class="btn sm ghost" data-act="reset">Reset demo data</button></div></div>`;
+  return `<div class="demo"><b>Prototype controls</b>
+    <p>Move the calendar forward to see fever-free streaks, missed readings and overdue discharges.</p>
+    <div class="row"><button data-act="nextday">Next day</button><button data-act="reset">Reset data</button></div></div>`;
 }
 function tempPreview() {
   const v = parseFloat($("#tIn").value),
@@ -79,11 +73,10 @@ function bindLogin() {
         UI.filter = "all";
         UI.q = "";
         render();
+        window.scrollTo(0, 0);
       }),
   );
-  bindDemo();
 }
-function bindDemo() {}
 function ask(title, text, yes, fn, danger) {
   UI.modal = {
     type: "confirm",
@@ -112,6 +105,7 @@ document.addEventListener("click", (e) => {
     UI.q = "";
     UI.filter = "all";
     render();
+    window.scrollTo(0, 0);
     return;
   }
   if (d.filter) {
@@ -184,6 +178,7 @@ document.addEventListener("click", (e) => {
       save();
       UI.modal = null;
       render();
+      window.scrollTo(0, 0);
       break;
     case "close":
       UI.modal = null;

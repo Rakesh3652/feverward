@@ -2,47 +2,93 @@
    One function per screen. Each returns an HTML string. */
 
 function Login() {
-  const role = (r, title, desc) =>
-    `<div class="role"><b>${title}</b><small>${desc}</small><div style="margin-top:12px;display:grid;gap:6px">${STAFF[r].map((s) => `<button class="btn" data-login="${r}:${s.id}">${esc(s.name)}</button>`).join("")}</div></div>`;
-  return `<div class="login"><div class="card panel">
-    <div class="brand"><span class="dot"></span>FeverWard</div>
-    <h1>Sign in to today's ward</h1>
-    <p class="sub">${fmtDate(S.day)} · ${active().length} of ${ROOMS} rooms occupied. Prototype: pick a staff account to sign in.</p>
-    <div class="roles">
-      ${role("nurse", "Nurse", "Record each patient's daily temperature.")}
-      ${role("doctor", "Doctor", "Visit patients after their temperature is in, record treatment, clear discharges.")}
-      ${role("admin", "Admin staff", "Admit patients to free rooms, complete discharges, watch outcomes.")}
-    </div></div></div>`;
+  const role = (
+    r,
+    title,
+    desc,
+  ) => `<div class="role"><b>${title}</b><small>${desc}</small>
+    <div class="who-list">${STAFF[r].map((s) => `<button class="btn" data-login="${r}:${s.id}">${esc(s.name)}</button>`).join("")}</div></div>`;
+  const act = active(),
+    taken = act.filter(tempToday).length;
+  return `<div class="login">
+    <section class="intro">
+      <div class="brand"><span class="dot"></span>FeverWard</div>
+      <div><h1>Every patient checked, every day.</h1>
+      <p>Daily temperatures, doctor visits and discharges for the quarantine centre, in one shared place.</p></div>
+      <div class="facts">
+        <div class="fact"><b>${fmtDate(S.day)}</b><small>Today</small></div>
+        <div class="fact"><b>${act.length} of ${ROOMS}</b><small>Rooms occupied</small></div>
+        <div class="fact"><b>${taken} of ${act.length}</b><small>Temperatures taken today</small></div>
+      </div>
+      ${Demo()}
+    </section>
+    <section class="pick">
+      <h2>Sign in</h2>
+      <p class="hint">Prototype: pick a staff account. No password needed.</p>
+      <div class="roles">
+        ${role("nurse", "Nurse", "Record each patient's daily temperature.")}
+        ${role("doctor", "Doctor", "Visit patients once their temperature is in, record treatment, clear discharges.")}
+        ${role("admin", "Admin staff", "Admit patients to free rooms, complete discharges, watch outcomes.")}
+      </div>
+    </section></div>`;
 }
 
-function Header() {
-  const u = S.user;
+const ICONS = {
+  rounds:
+    '<path d="M9 3h6v4H9zM6 5h2v2h8V5h2v16H6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  patients:
+    '<circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  beds: '<path d="M3 18V7M3 13h18v5M21 18v-3M7 13v-3h6a3 3 0 0 1 3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  discharges:
+    '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" transform="matrix(-1 0 0 1 24 0)"/>',
+  admit:
+    '<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  dashboard:
+    '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  log: '<path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
+};
+
+function Sidebar() {
+  const u = S.user,
+    act = active();
+  const todo = act.filter((p) => !tempToday(p)).length;
+  const ready = act.filter(
+    (p) => tempToday(p) && !visitToday(p) && p.status === "admitted",
+  ).length;
+  const pend = act.filter((p) => p.status === "discharge_pending").length;
   const tabs = {
     nurse: [
-      ["rounds", "Temperature rounds"],
+      ["rounds", "Temperature rounds", todo],
       ["patients", "All patients"],
     ],
     doctor: [
-      ["rounds", "Doctor rounds"],
+      ["rounds", "Doctor rounds", ready],
       ["patients", "All patients"],
       ["dashboard", "Outcomes"],
     ],
     admin: [
       ["beds", "Bed board"],
-      ["discharges", "Discharges"],
+      ["discharges", "Discharges", pend],
       ["admit", "Admit patient"],
       ["dashboard", "Outcomes"],
       ["log", "Activity log"],
     ],
   }[u.role];
-  return `<header class="top"><div class="wrap">
+  const initials = u.name
+    .replace(/^(Nurse|Dr\.)\s+/, "")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("");
+  return `<aside class="side">
     <div class="brand"><span class="dot"></span>FeverWard</div>
-    <span class="daychip">Today: ${fmtDate(S.day)}</span>
-    <nav class="tabs">${tabs.map(([k, l]) => `<button class="${UI.tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</nav>
-    <span class="spacer"></span>
-    <span class="who">Signed in as <b>${esc(u.name)}</b></span>
-    <button class="btn sm ghost" data-act="logout">Sign out</button>
-  </div></header>`;
+    <div class="today"><small>Today</small><b>${fmtDate(S.day)}</b></div>
+    <nav class="nav">${tabs.map(([k, l, c]) => `<button class="${UI.tab === k ? "on" : ""}" data-tab="${k}"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]}</svg>${l}${c ? `<span class="count">${c}</span>` : ""}</button>`).join("")}</nav>
+    <div class="spacer"></div>
+    ${Demo()}
+    <div class="user"><span class="avatar">${esc(initials)}</span><div><b>${esc(u.name)}</b><small>${u.role}</small></div>
+      <button class="signout" data-act="logout">Sign out</button></div>
+  </aside>`;
 }
 
 function NurseRounds() {
