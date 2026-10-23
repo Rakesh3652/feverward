@@ -8,7 +8,13 @@ function render() {
     document.activeElement.hasAttribute &&
     document.activeElement.hasAttribute("data-q");
   if (!S.user) {
-    app.innerHTML = Login() + Demo();
+    app.innerHTML =
+      Login() +
+      Demo() +
+      Modal() +
+      (UI.toast
+        ? `<div class="toast" role="status">${esc(UI.toast)}</div>`
+        : "");
     bindLogin();
     return;
   }
